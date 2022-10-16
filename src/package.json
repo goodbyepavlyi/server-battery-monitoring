@@ -1,0 +1,22 @@
+{
+  "name": "server-battery-monitoring",
+  "version": "1.0.0",
+  "description": "Node.JS script for monitoring battery on a server.",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/goodbyepavlyi/server-battery-monitoring.git"
+  },
+  "author": "goodbyepavlyi",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/goodbyepavlyi/server-battery-monitoring/issues"
+  },
+  "homepage": "https://github.com/goodbyepavlyi/server-battery-monitoring#readme",
+  "dependencies": {
+    "ms": "^2.1.3"
+  }
+}
