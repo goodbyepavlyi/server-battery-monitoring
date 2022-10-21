@@ -28,11 +28,11 @@ const Colors = {
     Dark_Red: parseInt("462224", 16),
 };
 
-let userNotified = { minimalBatteryPercentage: false, criticalBatteryPercentage: false, systemCharging: false, },
+let userNotified = { minimalBatteryPercentage: false, criticalBatteryPercentage: false, systemCharging: false, adapterUnplugged: false, },
     lastState, lastBatteryPercentage, lastPluggedIn;
 
 const resetVariables = () => {
-    userNotified = { minimalBatteryPercentage: false, criticalBatteryPercentage: false, systemCharging: false, };
+    userNotified = { minimalBatteryPercentage: false, criticalBatteryPercentage: false, systemCharging: false, adapterUnplugged: false, };
     lastState = undefined;
 }
 
@@ -115,6 +115,21 @@ const adapterCheck = async () => {
 const batteryCheck = async () => {
     // Get battery percentage
     const batteryPercentage = await getBatteryPercentage();
+
+    // If lastPluggedIn variable is not set, notify the user that the adapter has been unplugged
+    if (!(lastPluggedIn && userNotified.adapterUnplugged))
+        await sendDiscordWebhook({
+            embeds: [
+                {
+                    timestamp: new Date().toISOString(),
+                    color: Colors.Red,
+                    title: "The adapter charger has been unplugged!",
+                    description: `**Current battery percentage:** ${batteryPercentage}%`,
+                }
+            ]
+        })
+        .then(() => userNotified.adapterUnplugged = true)
+        .catch(error => options.debug ? console.log(`[DEBUG] Failed to send Discord message! ${error.message}`) : undefined);
 
     // Set lastPluggedIn variable if it's not set
     if (!lastPluggedIn) lastPluggedIn = Date.now();
