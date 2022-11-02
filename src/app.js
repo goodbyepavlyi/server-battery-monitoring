@@ -58,8 +58,7 @@ const sendDiscordWebhook = (webhookData) => new Promise((resolve, reject) => {
 });
 
 // Turns off the system
-const shutdownSystem = () => "";
-//! const shutdownSystem = () => execute('/usr/sbin/poweroff');
+const shutdownSystem = () => execute('/usr/sbin/poweroff');
 
 //? Getters
 // Returns battery percentage
