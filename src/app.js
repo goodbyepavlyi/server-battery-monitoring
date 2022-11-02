@@ -49,7 +49,11 @@ const sendDiscordWebhook = (webhookData) => new Promise((resolve, reject) => {
             'Content-Type': 'application/json',
             'Content-Length': webhookData.length,
         },
-    }, () => resolve());
+    }, (response) => {
+        if (response.statusCode != 204 || response.statusCode != 200) reject(`Discord API returned ${response.statusCode} (${response.statusMessage})`)
+
+        resolve();
+    });
 
     request.on("error", error => reject(error));
     
