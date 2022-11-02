@@ -8,7 +8,7 @@ const ms = require("ms");
 const processArguments = process.argv.slice(2);
 const options = {
     debug: processArguments.find(value => value === "-v") || false,
-    configPath: processArguments.find(value => value === "--config=")?.replace("--config=", "") || "/etc/default/batterymonitor",
+    configPath: processArguments.find(value => value.startsWith("--config="))?.replace("--config=", "") || "/etc/default/batterymonitor",
 };
 
 if (!fs.existsSync(options.configPath))
