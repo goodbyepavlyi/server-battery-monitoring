@@ -50,7 +50,7 @@ const sendDiscordWebhook = (webhookData) => new Promise((resolve, reject) => {
             'Content-Length': webhookData.length,
         },
     }, (response) => {
-        if (response.statusCode != 204 || response.statusCode != 200) reject(`Discord API returned ${response.statusCode} (${response.statusMessage})`)
+        if (response.statusCode != 204 && response.statusCode != 200) reject(`Discord API returned ${response.statusCode} (${response.statusMessage})`)
 
         resolve();
     });
