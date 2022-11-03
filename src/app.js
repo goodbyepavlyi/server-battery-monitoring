@@ -224,7 +224,7 @@ const batteryCheck = async () => {
 
         // Send a Discord webhook
         log("Sending Discord webhook", true);
-        await notify(config.notifications.adapterUnplugged, { batteryPercentage })
+        await notify(config.notifications.batteryBelowMinimum, { batteryPercentage })
             .then(() => userNotified.minimalBatteryPercentage = true)
             .catch(error => log(`Failed to send Discord message! ${error.message || error.stack || error}`, true));
     }
