@@ -140,7 +140,7 @@ const adapterCheck = async () => {
         .then(() => userNotified.systemCharging = true)
         .catch(error => options.debug ? console.log(`[DEBUG] Failed to send Discord message! ${error.message || error.stack || error}`) : undefined);
 
-        lastBatteryPercentage = undefined;
+        lastBatteryPercentage,
         lastPluggedIn = undefined;
     }
 };
