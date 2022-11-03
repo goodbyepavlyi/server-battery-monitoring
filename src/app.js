@@ -61,7 +61,7 @@ if (!fs.existsSync(options.configPath))
     }, null, 2));
 
 // Importing the config
-const config = require(options.configPath);
+const config = JSON.parse(fs.readFileSync(options.configPath));
 
 //? Variables
 let userNotified = { minimalBatteryPercentage: false, criticalBatteryPercentage: false, systemCharging: false, adapterUnplugged: false, },
