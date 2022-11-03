@@ -7,7 +7,7 @@ const ms = require("ms");
 
 const processArguments = process.argv.slice(2);
 const options = {
-    debug: processArguments.find(value => value === "-v") || false,
+    debug: processArguments.find(value => value === "-v" || value === "-debug") || false,
     configPath: processArguments.find(value => value.startsWith("--config="))?.replace("--config=", "") || "/etc/default/batterymonitor",
 };
 
