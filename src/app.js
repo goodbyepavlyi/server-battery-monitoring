@@ -13,8 +13,8 @@ const options = {
 
 if (!fs.existsSync(options.configPath))
     fs.writeFileSync(options.configPath, JSON.stringify({
-        discordWebhookID: "REPLACE",        
-        discordWebhookToken: "REPLACE",        
+        discordWebhookID: "REPLACE",
+        discordWebhookToken: "REPLACE",
         batteryPercentageMinimal: 30,
         batteryPercentageCritical: 10,
     }, null, 2));
