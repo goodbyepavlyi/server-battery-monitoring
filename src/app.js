@@ -44,6 +44,13 @@ if (!fs.existsSync(options.configPath))
                 title: "Battery percentage is below minimum!",
                 description: `**Current battery percentage:** {batteryPercentage}%\n**Minimal battery percentage:** {batteryPercentageMinimal}%\n**Critical battery percentage:** {batteryPercentageCritical}%`,
             },
+
+            batteryAtCriticalLevel: {
+                timestamp: true,
+                color: "#ec7979",
+                title: "Battery percentage is at critical percentage, system shutting down!",
+                description: `**Current battery percentage:** {batteryPercentage}%\n**Critical battery percentage:** {batteryPercentageCritical}%`,
+            },
         },
     }, null, 2));
 
@@ -212,9 +219,13 @@ const batteryCheck = async () => {
     if (batteryPercentage <= config.batteryPercentageCritical) {
         log("A critical percentage has been reached in the battery");
         
-        if (!userNotified.criticalBatteryPercentage) log("Sending Discord webhook", true);
         // Send a Discord webhook
-        if (!userNotified.criticalBatteryPercentage) await sendDiscordWebhook({ embeds: [{ timestamp: new Date().toISOString(), color: Colors.Dark_Red, title: "Battery percentage is at critical percentage, system shutting down!", description: `**Current battery percentage:** ${batteryPercentage}%\n**Critical battery percentage:** ${config.batteryPercentageCritical}%`, }] }).then(() => userNotified.criticalBatteryPercentage = true).catch(error => log(`Failed to send Discord message! ${error.message || error.stack || error}`, true));
+        if (!userNotified.criticalBatteryPercentage) {
+            log("Sending Discord webhook", true);
+            await notify(config.notifications.batteryAtCriticalLevel, { batteryPercentage, batteryPercentageCritical: config.batteryPercentageCritical })
+            .then(() => userNotified.criticalBatteryPercentage = true)
+            .catch(error => log(`Failed to send Discord message! ${error.message || error.stack || error}`, true));
+        }
 
         log("Due to battery percentage being at critical, the system will be shut down..");
         
