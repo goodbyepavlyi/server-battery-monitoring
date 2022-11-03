@@ -159,18 +159,19 @@ const adapterCheck = async () => {
         .catch(error => log(`Failed to send Discord message! ${error.message || error.stack || error}`, true));
     }
 
+    // TODO: Make the function work again
     // Notify the user with details when the adapter is plugged in
-    if (lastBatteryPercentage && lastPluggedIn) {
-        unpluggedTime =  ms(new Date() - lastPluggedIn, { long: true })
+    // if (lastBatteryPercentage && lastPluggedIn) {
+    //     unpluggedTime =  ms(new Date() - lastPluggedIn, { long: true })
 
-        // Send a Discord webhook
-        await notify(config.notifications.adapterUnpluggedDetails, { batteryPercentage, lastBatteryPercentage, unpluggedTime })
-        .then(() => userNotified.systemCharging = true)
-        .catch(error => log(`Failed to send Discord message! ${error.message || error.stack || error}`, true));
+    //     // Send a Discord webhook
+    //     await notify(config.notifications.adapterUnpluggedDetails, { batteryPercentage, lastBatteryPercentage, unpluggedTime })
+    //     .then(() => userNotified.systemCharging = true)
+    //     .catch(error => log(`Failed to send Discord message! ${error.message || error.stack || error}`, true));
 
-        lastBatteryPercentage,
-        lastPluggedIn = undefined;
-    }
+    //     lastBatteryPercentage,
+    //     lastPluggedIn = undefined;
+    // }
 };
 
 const batteryCheck = async () => {
