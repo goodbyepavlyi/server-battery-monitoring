@@ -94,6 +94,9 @@ const sendDiscordWebhook = (webhookData) => new Promise((resolve, reject) => {
 // Turns off the system
 const shutdownSystem = () => execute('/usr/sbin/poweroff');
 
+// Logs into console
+const log = (message, debug) => debug && options.debug ? console.log(`[DEBUG] ${message}`) : console.log(message);
+
 //? Getters
 // Returns battery percentage
 const getBatteryPercentage = async () => execute('cat /sys/class/power_supply/*/capacity').then(process => Number(process.stdout.trim()));
@@ -148,12 +151,12 @@ const adapterCheck = async () => {
     
     // Notify the user that adapter is plugged in
     if (!userNotified.systemCharging) {
-        if (options.debug) console.log("[DEBUG] Sending Discord webhook");
+        log("Sending Discord webhook..", true);
 
         // Send a Discord webhook
         await notify(config.notifications.systemCharging, { batteryPercentage })
-        .then(() => { userNotified.systemCharging = true; options.debug ? console.log("[DEBUG] Discord webhook sent!") : ''; })
-        .catch(error => options.debug ? console.log(`[DEBUG] Failed to send Discord message! ${error.message || error.stack || error}`) : undefined);
+        .then(() => { userNotified.systemCharging = true; log("Discord webhook sent!", true); })
+        .catch(error => log(`Failed to send Discord message! ${error.message || error.stack || error}`, true));
     }
 
     // Notify the user with details when the adapter is plugged in
@@ -163,7 +166,7 @@ const adapterCheck = async () => {
         // Send a Discord webhook
         await notify(config.notifications.adapterUnpluggedDetails, { batteryPercentage, lastBatteryPercentage, unpluggedTime })
         .then(() => userNotified.systemCharging = true)
-        .catch(error => options.debug ? console.log(`[DEBUG] Failed to send Discord message! ${error.message || error.stack || error}`) : undefined);
+        .catch(error => log(`Failed to send Discord message! ${error.message || error.stack || error}`, true));
 
         lastBatteryPercentage,
         lastPluggedIn = undefined;
@@ -178,41 +181,41 @@ const batteryCheck = async () => {
     if (!(lastPluggedIn && userNotified.adapterUnplugged))
         await notify(config.notifications.adapterUnplugged, { batteryPercentage })
         .then(() => userNotified.adapterUnplugged = true)
-        .catch(error => options.debug ? console.log(`[DEBUG] Failed to send Discord message! ${error.message || error.stack || error}`) : undefined);
+        .catch(error => log(`Failed to send Discord message! ${error.message || error.stack || error}`, true));
 
     // Set lastPluggedIn variable if it's not set
     if (!lastPluggedIn) lastPluggedIn = Date.now();
 
     // If the battery percentage is bigger than minimal percentage
     if (batteryPercentage > config.batteryPercentageMinimal)
-        return options.debug ? console.log("[DEBUG] Battery percentage is higher than values, skipping..") : undefined;
+        return log("Battery percentage is higher than values, skipping..", true);
 
     // Log battery decreasing
     if (options.debug && batteryPercentage !== lastBatteryPercentage) {
         lastBatteryPercentage = batteryPercentage;
-        console.log(`[DEBUG] Battery percentage ${batteryPercentage >= lastBatteryPercentage ? "increased" : "decreased"} to ${batteryPercentage}%`);
+        log(`Battery percentage ${batteryPercentage >= lastBatteryPercentage ? "increased" : "decreased"} to ${batteryPercentage}%`, true);
     }
 
     // If battery percentage is below minimal and higher than critical then report it
     if (batteryPercentage <= config.batteryPercentageMinimal && batteryPercentage > config.batteryPercentageCritical && !userNotified.minimalBatteryPercentage) {
-        console.log("Battery percentage is below minimum");
+        log("Battery percentage is below minimum");
 
-        if (options.debug) console.log("[DEBUG] Sending Discord webhook");
+        log("Sending Discord webhook", true);
         // Send a Discord webhook
         await notify(config.notifications.adapterUnplugged, { batteryPercentage })
         .then(() => userNotified.minimalBatteryPercentage = true)
-        .catch(error => options.debug ? console.log(`[DEBUG] Failed to send Discord message! ${error.message || error.stack || error}`) : undefined);
+        .catch(error => log(`Failed to send Discord message! ${error.message || error.stack || error}`, true));
     }
 
     // If battery percentage is below critical then report it and shutdown the system
     if (batteryPercentage <= config.batteryPercentageCritical) {
-        console.log("A critical percentage has been reached in the battery");
+        log("A critical percentage has been reached in the battery");
         
-        if (options.debug && !userNotified.criticalBatteryPercentage) console.log("[DEBUG] Sending Discord webhook");
+        if (!userNotified.criticalBatteryPercentage) log("Sending Discord webhook", true);
         // Send a Discord webhook
-        if (!userNotified.criticalBatteryPercentage) await sendDiscordWebhook({ embeds: [{ timestamp: new Date().toISOString(), color: Colors.Dark_Red, title: "Battery percentage is at critical percentage, system shutting down!", description: `**Current battery percentage:** ${batteryPercentage}%\n**Critical battery percentage:** ${config.batteryPercentageCritical}%`, }] }).then(() => userNotified.criticalBatteryPercentage = true).catch(error => options.debug ? console.log(`[DEBUG] Failed to send Discord message! ${error.message || error.stack || error}`) : undefined);
+        if (!userNotified.criticalBatteryPercentage) await sendDiscordWebhook({ embeds: [{ timestamp: new Date().toISOString(), color: Colors.Dark_Red, title: "Battery percentage is at critical percentage, system shutting down!", description: `**Current battery percentage:** ${batteryPercentage}%\n**Critical battery percentage:** ${config.batteryPercentageCritical}%`, }] }).then(() => userNotified.criticalBatteryPercentage = true).catch(error => log(`Failed to send Discord message! ${error.message || error.stack || error}`, true));
 
-        console.log("Due to battery percentage being at critical, the system will be shut down..");
+        log("Due to battery percentage being at critical, the system will be shut down..");
         
         // TODO: Turn on fallback machine through WOL if configured before shutting down
 
@@ -232,7 +235,7 @@ const start = async () => {
     // If the system isn't charging then check battery
     if (!systemCharging) return batteryCheck();
     
-    if (options.debug) console.log("[DEBUG] System is charging, skipping battery check..");
+    log("System is charging, skipping battery check..", true);
     // If the system is charging then check adapter
     return adapterCheck();
 };
