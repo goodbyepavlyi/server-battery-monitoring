@@ -17,17 +17,47 @@ if (!fs.existsSync(options.configPath))
         discordWebhookToken: "REPLACE",
         batteryPercentageMinimal: 30,
         batteryPercentageCritical: 10,
+        notifications: {
+            systemCharging: {
+                timestamp: true,
+                color: "#1ed760",
+                title: "System is charging!",
+            },
+            
+            adapterUnpluggedDetails: {
+                timestamp: true,
+                color: "#1ed760",
+                title: "Details while the system was unplugged",
+                description: `**Current percentage:** {batteryPercentage}%\n**Lowest battery percentage:** {lastBatteryPercentage}%\n**System unplugged time:** {unpluggedTime}`,
+            },
+            
+            adapterUnplugged: {
+                timestamp: true,
+                color: "#ec7979",
+                title: "The adapter charger has been unplugged!",
+                description: `**Current battery percentage:** {batteryPercentage}%`,
+            },
+            
+            batteryBelowMinimum: {
+                timestamp: true,
+                color: "#ec7979",
+                title: "Battery percentage is below minimum!",
+                description: `**Current battery percentage:** {batteryPercentage}%\n**Minimal battery percentage:** {batteryPercentageMinimal}%\n**Critical battery percentage:** {batteryPercentageCritical}%`,
+            },
+        },
     }, null, 2));
 
 const config = JSON.parse(fs.readFileSync(options.configPath));
 
-//? Variables
-const Colors = {
-    Green: parseInt("1ed760", 16),
-    Red: parseInt("ec7979", 16),
-    Dark_Red: parseInt("462224", 16),
-};
+const stringInject = (template, variables) => {
+    if (!template) return;
+    
+    return template.replace(new RegExp("\{([^\{]+)\}", "g"), function (_unused, varName) {
+        return variables[varName];
+    });
+}
 
+//? Variables
 let userNotified = { minimalBatteryPercentage: false, criticalBatteryPercentage: false, systemCharging: false, adapterUnplugged: false, },
     lastState, lastBatteryPercentage, lastPluggedIn;
 
@@ -61,7 +91,6 @@ const sendDiscordWebhook = (webhookData) => new Promise((resolve, reject) => {
     request.end();
 });
 
-
 // Turns off the system
 const shutdownSystem = () => execute('/usr/sbin/poweroff');
 
@@ -73,50 +102,44 @@ const getBatteryPercentage = async () => execute('cat /sys/class/power_supply/*/
 const isSystemCharging = async () => execute('cat /sys/class/power_supply/*/online').then(process => Number(process.stdout.trim()));
 
 //? Notifications
-// TODO: Turn this into single function
-// TODO: Make this customizable in config
-const notificationSystemCharging = () => sendDiscordWebhook({
-    embeds: [
-        {
-            timestamp: new Date().toISOString(),
-            color: Colors.Green,
-            title: "System is charging!",
-        }
-    ]
-});
+const notify = (data, variables) => sendDiscordWebhook({ embeds: [embedify(data, variables)] });
 
-const notificationSystemDetails = (batteryPercentage) => sendDiscordWebhook({
-    embeds: [
-        {
-            timestamp: new Date().toISOString(),
-            color: Colors.Green,
-            title: "Details while the system was unplugged",
-            description: `**Current percentage:** ${batteryPercentage}%\n**Lowest battery percentage:** ${lastBatteryPercentage}%\n**System unplugged time:** ${ms(new Date() - lastPluggedIn, { long: true })}`,
-        }
-    ]
-});
+// TODO: Optimize this code someday
+const embedify = (embed, variables) => {
+    embed = Object.create(embed);
+    
+    // Title
+    embed.title = stringInject(embed.title, variables);
+    
+    // Description
+    embed.description = stringInject(embed?.description, variables);
 
-const notificationAdapterUnplugged = (batteryPercentage) => sendDiscordWebhook({
-    embeds: [
-        {
-            timestamp: new Date().toISOString(),
-            color: Colors.Red,
-            title: "The adapter charger has been unplugged!",
-            description: `**Current battery percentage:** ${batteryPercentage}%`,
-        }
-    ]
-});
+    // URL
+    embed.url = stringInject(embed?.url, variables);
 
-const notificationBatteryBelowMinimum = (batteryPercentage) => sendDiscordWebhook({
-    embeds: [
-        {
-            timestamp: new Date().toISOString(),
-            color: Colors.Red,
-            title: "Battery percentage is below minimum!",
-            description: `**Current battery percentage:** ${batteryPercentage}%\n**Minimal battery percentage:** ${config.batteryPercentageMinimal}%\n**Critical battery percentage:** ${config.batteryPercentageCritical}%`,
-        }
-    ]
-});
+    // Footer
+    embed.footer = stringInject(embed?.footer, variables);
+
+    // Image
+    embed.image = stringInject(embed?.image, variables);
+
+    // Thumbnail
+    embed.thumbnail = stringInject(embed?.thumbnail, variables);
+
+    // Author
+    embed.author = stringInject(embed?.author, variables);
+
+    // Fields
+    embed.fields = stringInject(embed?.fields, variables);
+
+    // Format timestamp
+    if (embed.timestamp) embed.timestamp = new Date().toISOString();
+
+    // HEX Color to hexadecimal
+    if (embed.color) embed.color = parseInt(embed.color.replace("#", ""), 16);
+
+    return embed;
+};
 
 //? Checkers
 const adapterCheck = async () => {
@@ -128,15 +151,17 @@ const adapterCheck = async () => {
         if (options.debug) console.log("[DEBUG] Sending Discord webhook");
 
         // Send a Discord webhook
-        await notificationSystemCharging()
-        .then(() => userNotified.systemCharging = true && options.debug ? console.log("[DEBUG] Discord webhook sent!") : '')
+        await notify(config.notifications.systemCharging, { batteryPercentage })
+        .then(() => { userNotified.systemCharging = true; options.debug ? console.log("[DEBUG] Discord webhook sent!") : ''; })
         .catch(error => options.debug ? console.log(`[DEBUG] Failed to send Discord message! ${error.message || error.stack || error}`) : undefined);
     }
 
     // Notify the user with details when the adapter is plugged in
     if (lastBatteryPercentage && lastPluggedIn) {
+        unpluggedTime =  ms(new Date() - lastPluggedIn, { long: true })
+
         // Send a Discord webhook
-        await notificationSystemDetails(batteryPercentage)
+        await notify(config.notifications.adapterUnpluggedDetails, { batteryPercentage, lastBatteryPercentage, unpluggedTime })
         .then(() => userNotified.systemCharging = true)
         .catch(error => options.debug ? console.log(`[DEBUG] Failed to send Discord message! ${error.message || error.stack || error}`) : undefined);
 
@@ -151,7 +176,7 @@ const batteryCheck = async () => {
 
     // If lastPluggedIn variable is not set, notify the user that the adapter has been unplugged
     if (!(lastPluggedIn && userNotified.adapterUnplugged))
-        await notificationAdapterUnplugged(batteryPercentage)
+        await notify(config.notifications.adapterUnplugged, { batteryPercentage })
         .then(() => userNotified.adapterUnplugged = true)
         .catch(error => options.debug ? console.log(`[DEBUG] Failed to send Discord message! ${error.message || error.stack || error}`) : undefined);
 
@@ -174,7 +199,7 @@ const batteryCheck = async () => {
 
         if (options.debug) console.log("[DEBUG] Sending Discord webhook");
         // Send a Discord webhook
-        await notificationBatteryBelowMinimum(batteryPercentage)
+        await notify(config.notifications.adapterUnplugged, { batteryPercentage })
         .then(() => userNotified.minimalBatteryPercentage = true)
         .catch(error => options.debug ? console.log(`[DEBUG] Failed to send Discord message! ${error.message || error.stack || error}`) : undefined);
     }

@@ -1,0 +1,31 @@
+{
+  "discordWebhookID": "1031225947157975091",
+  "discordWebhookToken": "247p_2h6FLdKYO-A-M47FV1fUxIe0dzk5_0Kf7wy6Gvp1se-qAIGXvUbVcBODkLiSX3w",
+  "batteryPercentageMinimal": 30,
+  "batteryPercentageCritical": 10,
+  "notifications": {
+    "systemCharging": {
+      "timestamp": true,
+      "color": "#1ed760",
+      "title": "System is charging!"
+    },
+    "adapterUnpluggedDetails": {
+      "timestamp": true,
+      "color": "#1ed760",
+      "title": "Details while the system was unplugged",
+      "description": "**Current percentage:** {batteryPercentage}%\n**Lowest battery percentage:** {lastBatteryPercentage}%\n**System unplugged time:** {unpluggedTime}"
+    },
+    "adapterUnplugged": {
+      "timestamp": true,
+      "color": "#ec7979",
+      "title": "The adapter charger has been unplugged!",
+      "description": "**Current battery percentage:** {batteryPercentage}%"
+    },
+    "batteryBelowMinimum": {
+      "timestamp": true,
+      "color": "#ec7979",
+      "title": "Battery percentage is below minimum!",
+      "description": "**Current battery percentage:** {batteryPercentage}%\n**Minimal battery percentage:** {batteryPercentageMinimal}%\n**Critical battery percentage:** {batteryPercentageCritical}%"
+    }
+  }
+}
