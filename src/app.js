@@ -173,19 +173,15 @@ const adapterCheck = async () => {
             .catch(error => log(`Failed to send Discord message! ${error.message || error.stack || error}`, true));
     }
 
-    // TODO: Make the function work again
     // Notify the user with details when the adapter is plugged in
-    // if (lastBatteryPercentage && lastPluggedIn) {
-    //     unpluggedTime =  ms(new Date() - lastPluggedIn, { long: true })
+    if (lastBatteryPercentage && lastPluggedIn) {
+        unpluggedTime =  ms(new Date() - lastPluggedIn, { long: true });
 
-    //     // Send a Discord webhook
-    //     await notify(config.notifications.adapterUnpluggedDetails, { batteryPercentage, lastBatteryPercentage, unpluggedTime })
-    //     .then(() => userNotified.systemCharging = true)
-    //     .catch(error => log(`Failed to send Discord message! ${error.message || error.stack || error}`, true));
-
-    //     lastBatteryPercentage,
-    //     lastPluggedIn = undefined;
-    // }
+        // Send a Discord webhook
+        await notify(config.notifications.adapterUnpluggedDetails, { batteryPercentage, lastBatteryPercentage, unpluggedTime })
+            .then(() => lastBatteryPercentage, lastPluggedIn = undefined)
+            .catch(error => log(`Failed to send Discord message! ${error.message || error.stack || error}`, true));
+    }
 };
 
 const batteryCheck = async () => {
@@ -202,15 +198,17 @@ const batteryCheck = async () => {
     if (!lastPluggedIn)
         lastPluggedIn = Date.now();
 
+    // Set lastBatteryPercentage variable if it's not set
+    if (!lastBatteryPercentage || batteryPercentage !== lastBatteryPercentage)
+        lastBatteryPercentage = batteryPercentage
+
     // If the battery percentage is bigger than minimal percentage, cancel
     if (batteryPercentage > config.batteryPercentageMinimal)
         return log("Battery percentage is higher than values, skipping..", true);
 
     // Log battery percentage decreasing or increasing
-    if (options.debug && batteryPercentage !== lastBatteryPercentage) {
-        lastBatteryPercentage = batteryPercentage;
+    if (options.debug && batteryPercentage !== lastBatteryPercentage)
         log(`Battery percentage ${batteryPercentage >= lastBatteryPercentage ? "increased" : "decreased"} to ${batteryPercentage}%`, true);
-    }
 
     // If battery percentage is below minimal and higher than critical, report it
     if (batteryPercentage <= config.batteryPercentageMinimal && batteryPercentage > config.batteryPercentageCritical && !userNotified.minimalBatteryPercentage) {
