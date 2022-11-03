@@ -4,6 +4,7 @@ const execute = promisify(require("child_process").exec);
 const https = require("https");
 const fs = require("fs");
 const ms = require("ms");
+const { wake: wol } = require("wol");
 
 const processArguments = process.argv.slice(2);
 const options = {
@@ -18,6 +19,10 @@ if (!fs.existsSync(options.configPath))
         discordWebhookToken: "REPLACE",
         batteryPercentageMinimal: 30,
         batteryPercentageCritical: 10,
+        fallbackMachine: {
+            enabled: false,
+            mac: "A1:B2:C3:D4:E5:F6",
+        },
         notifications: {
             systemCharging: {
                 timestamp: true,
@@ -106,6 +111,9 @@ const stringInject = (template, variables) => {
 
 // Turns off the system
 const shutdownSystem = () => execute('/usr/sbin/poweroff');
+
+// Powers on the fallback machine
+const poweronFallbackMachine = () => wol(config.fallbackMachine.mac);
 
 // Logs into console
 const log = (message, debug) => debug && options.debug ? console.log(`[DEBUG] ${message}`) : console.log(message);
@@ -235,7 +243,13 @@ const batteryCheck = async () => {
 
         log("Due to battery percentage being at critical, the system will be shut down..");
         
-        // TODO: Turn on fallback machine through WOL if configured before shutting down
+        // Power on fallback machine if configured
+        if (config.fallbackMachine.enabled) {
+            log("Powering on fallback machine..", true)
+            await poweronFallbackMachine()
+                .then(() => notify(config.notifications.fallbackMachineSuccess).catch(error => log(`Failed to send Discord message! ${error.message || error.stack || error}`, true)))
+                .catch(error => notify(config.notifications.fallbackMachineFailed, { error: error.message || error.stack || error }).catch(error => log(`Failed to send Discord message! ${error.message || error.stack || error}`, true)));
+        }
 
         // Shutdown the system
         shutdownSystem();
