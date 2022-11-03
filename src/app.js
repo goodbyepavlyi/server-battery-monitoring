@@ -11,6 +11,7 @@ const options = {
     configPath: processArguments.find(value => value.startsWith("--config="))?.replace("--config=", "") || "/etc/default/batterymonitor",
 };
 
+// If config doesn't exist on the defined path, create it!
 if (!fs.existsSync(options.configPath))
     fs.writeFileSync(options.configPath, JSON.stringify({
         discordWebhookID: "REPLACE",
@@ -54,26 +55,21 @@ if (!fs.existsSync(options.configPath))
         },
     }, null, 2));
 
-const config = JSON.parse(fs.readFileSync(options.configPath));
-
-const stringInject = (template, variables) => {
-    if (!template) return;
-    
-    return template.replace(new RegExp("\{([^\{]+)\}", "g"), function (_unused, varName) {
-        return variables[varName];
-    });
-}
+// Importing the config
+const config = require(options.configPath);
 
 //? Variables
 let userNotified = { minimalBatteryPercentage: false, criticalBatteryPercentage: false, systemCharging: false, adapterUnplugged: false, },
     lastState, lastBatteryPercentage, lastPluggedIn;
 
+// Resets the variables
 const resetVariables = () => {
     userNotified = { minimalBatteryPercentage: false, criticalBatteryPercentage: false, systemCharging: false, adapterUnplugged: false, };
     lastState = undefined;
 }
 
 //? Functions
+// Sends a webhook to Discord
 const sendDiscordWebhook = (webhookData) => new Promise((resolve, reject) => {
     webhookData = JSON.stringify(webhookData);
 
@@ -87,7 +83,8 @@ const sendDiscordWebhook = (webhookData) => new Promise((resolve, reject) => {
             'Content-Length': webhookData.length,
         },
     }, (response) => {
-        if (response.statusCode != 204 && response.statusCode != 200) reject(`Discord API returned ${response.statusCode} (${response.statusMessage})`)
+        if (response.statusCode != 204 && response.statusCode != 200)
+            reject(`Discord API returned ${response.statusCode} (${response.statusMessage})`)
 
         resolve();
     });
@@ -97,6 +94,15 @@ const sendDiscordWebhook = (webhookData) => new Promise((resolve, reject) => {
     request.write(webhookData);
     request.end();
 });
+
+// Injects variables into string
+const stringInject = (template, variables) => {
+    if (!template) return;
+    
+    return template.replace(new RegExp("\{([^\{]+)\}", "g"), function (_unused, varName) {
+        return variables[varName];
+    });
+}
 
 // Turns off the system
 const shutdownSystem = () => execute('/usr/sbin/poweroff');
@@ -112,9 +118,11 @@ const getBatteryPercentage = async () => execute('cat /sys/class/power_supply/*/
 const isSystemCharging = async () => execute('cat /sys/class/power_supply/*/online').then(process => Number(process.stdout.trim()));
 
 //? Notifications
+// Sends the embed to Discord for notifications
 const notify = (data, variables) => sendDiscordWebhook({ embeds: [embedify(data, variables)] });
 
 // TODO: Optimize this code someday
+// Properly formats user configured embed
 const embedify = (embed, variables) => {
     embed = Object.create(embed);
     
@@ -156,14 +164,13 @@ const adapterCheck = async () => {
     // Get battery percentage
     const batteryPercentage = await getBatteryPercentage();
     
-    // Notify the user that adapter is plugged in
+    // Notify the user that the adapter is plugged in
     if (!userNotified.systemCharging) {
-        log("Sending Discord webhook..", true);
-
         // Send a Discord webhook
+        log("Sending Discord webhook..", true);
         await notify(config.notifications.systemCharging, { batteryPercentage })
-        .then(() => { userNotified.systemCharging = true; log("Discord webhook sent!", true); })
-        .catch(error => log(`Failed to send Discord message! ${error.message || error.stack || error}`, true));
+            .then(() => { userNotified.systemCharging = true; log("Discord webhook sent!", true); })
+            .catch(error => log(`Failed to send Discord message! ${error.message || error.stack || error}`, true));
     }
 
     // TODO: Make the function work again
@@ -188,34 +195,35 @@ const batteryCheck = async () => {
     // If lastPluggedIn variable is not set, notify the user that the adapter has been unplugged
     if (!(lastPluggedIn && userNotified.adapterUnplugged))
         await notify(config.notifications.adapterUnplugged, { batteryPercentage })
-        .then(() => userNotified.adapterUnplugged = true)
-        .catch(error => log(`Failed to send Discord message! ${error.message || error.stack || error}`, true));
+            .then(() => userNotified.adapterUnplugged = true)
+            .catch(error => log(`Failed to send Discord message! ${error.message || error.stack || error}`, true));
 
     // Set lastPluggedIn variable if it's not set
-    if (!lastPluggedIn) lastPluggedIn = Date.now();
+    if (!lastPluggedIn)
+        lastPluggedIn = Date.now();
 
-    // If the battery percentage is bigger than minimal percentage
+    // If the battery percentage is bigger than minimal percentage, cancel
     if (batteryPercentage > config.batteryPercentageMinimal)
         return log("Battery percentage is higher than values, skipping..", true);
 
-    // Log battery decreasing
+    // Log battery percentage decreasing or increasing
     if (options.debug && batteryPercentage !== lastBatteryPercentage) {
         lastBatteryPercentage = batteryPercentage;
         log(`Battery percentage ${batteryPercentage >= lastBatteryPercentage ? "increased" : "decreased"} to ${batteryPercentage}%`, true);
     }
 
-    // If battery percentage is below minimal and higher than critical then report it
+    // If battery percentage is below minimal and higher than critical, report it
     if (batteryPercentage <= config.batteryPercentageMinimal && batteryPercentage > config.batteryPercentageCritical && !userNotified.minimalBatteryPercentage) {
         log("Battery percentage is below minimum");
 
-        log("Sending Discord webhook", true);
         // Send a Discord webhook
+        log("Sending Discord webhook", true);
         await notify(config.notifications.adapterUnplugged, { batteryPercentage })
-        .then(() => userNotified.minimalBatteryPercentage = true)
-        .catch(error => log(`Failed to send Discord message! ${error.message || error.stack || error}`, true));
+            .then(() => userNotified.minimalBatteryPercentage = true)
+            .catch(error => log(`Failed to send Discord message! ${error.message || error.stack || error}`, true));
     }
 
-    // If battery percentage is below critical then report it and shutdown the system
+    // If battery percentage is below critical, report it and shutdown the system
     if (batteryPercentage <= config.batteryPercentageCritical) {
         log("A critical percentage has been reached in the battery");
         
@@ -223,8 +231,8 @@ const batteryCheck = async () => {
         if (!userNotified.criticalBatteryPercentage) {
             log("Sending Discord webhook", true);
             await notify(config.notifications.batteryAtCriticalLevel, { batteryPercentage, batteryPercentageCritical: config.batteryPercentageCritical })
-            .then(() => userNotified.criticalBatteryPercentage = true)
-            .catch(error => log(`Failed to send Discord message! ${error.message || error.stack || error}`, true));
+                .then(() => userNotified.criticalBatteryPercentage = true)
+                .catch(error => log(`Failed to send Discord message! ${error.message || error.stack || error}`, true));
         }
 
         log("Due to battery percentage being at critical, the system will be shut down..");
@@ -240,15 +248,15 @@ const batteryCheck = async () => {
 const start = async () => {
     const systemCharging = !!(await isSystemCharging());
 
-    // If last state doesn't equal the one now then reset variables
+    // If last state doesn't equal the one now, reset variables
     if (lastState != systemCharging) resetVariables();
     lastState = systemCharging;
 
-    // If the system isn't charging then check battery
+    // If the system isn't charging, check battery
     if (!systemCharging) return batteryCheck();
     
+    // If the system is charging, log and check adapter
     log("System is charging, skipping battery check..", true);
-    // If the system is charging then check adapter
     return adapterCheck();
 };
 
